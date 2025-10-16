@@ -1,26 +1,13 @@
 # Create a Linux VM in Azure with Terraform
 
 # Preparations
+## Terraform installation
+https://developer.hashicorp.com/terraform/install#linux
+
 ## Azure CLI
-The following did not work for me.
+Installation of Azure CLI
 
-lsb_release -cs shows virginia but there is no virginia on the web site
-
-https://packages.microsoft.com/repos/azure-cli/dists/
-
-https://learn.microsoft.com/en-us/cli/azure/install-azure-cli-linux?pivots=apt
-
-
-This did work
-
-    curl -L https://aka.ms/InstallAzureCli | bash
-
-## az extension
-I don´t know why but without the aks-preview extention I get an error setting up the AKS cluster
-
-    az extension add -n aks-preview
-    az extension list
-    az version
+    curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash
 
 ## az login
 To run the terraform apply you first need to login at Azure
@@ -34,41 +21,69 @@ To run the terraform apply you first need to login at Azure
     az account list
 
 # Code
+## client access values
+To access Azure with Terraform you need a client_id and client_secret
+
+Create a Service Principal e.g. terraform in https://entra.microsoft.com
+
+    az ad sp create-for-rbac --name "terraform-sp" --role="Contributor" --scopes="/subscriptions/<SUBSCRIPTION_ID>"
+
+
+    {
+    "appId": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",         # → Client ID
+    "displayName": "terraform-sp",
+    "password": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx",       # → Client Secret
+    "tenant": "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"          # → Tenant ID
+    }
+
+In the Azure portal the SP can be seen in Microsoft Entra ID -> App registrations
+
 ## terraform.tfvars
-put in here all secret values
+Put in here all secret values in terraform.tfvars
+
+client_id       = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+
+client_secret   = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+
+tenant_id       = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+
+subscription_id = "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
 
 This file should not be put in git, because it contains secrets.
 
 Check .gitignore
 
-## client access values
-To access Azure with Terraform you need a client_id client_secret
+## Test of SP with az login
 
-Create a user e.g. terraform in https://entra.microsoft.com
-
-In the overview you get the client id
-
-To to certifcates & secrets and create a secret client key. Copy the value.
+    az login --service-principal \
+            --username <APP_ID> \
+            --password <CLIENT_SECRET> \
+            --tenant <TENANT_ID>
 
 ## locals.tf
 put in here all values, but no secrets
 
 # Terraform commands
-## initialze Terraform
+## Initialze Terraform
     terraform init [-upgrade]
 
 ## Terraform Validate
     terraform validate
 
-## create a Terraform execution plan
+## Create a Terraform execution plan
     terraform plan -var-file="terraform.tfvars"
 
-## execute Terraform
+## Execute Terraform
     terraform apply -var-file="terraform.tfvars"
 
-## delete all remote objets
+## Delete all remote objets
     terraform destroy
 
 ## Environment variables for debugging
     $env:TF_LOG="DEBUG"
     $env:TF_LOG_PATH="terraform.log"
+
+# Access VM with ssh
+With the following command you should be able to access the vm
+
+    ssh -i ${local_file.ssh_privat_key.filename} ${var.admin_username}@${azurerm_public_ip.appip.ip_address} -o StrictHostKeyChecking=no -o IdentitiesOnly=yes

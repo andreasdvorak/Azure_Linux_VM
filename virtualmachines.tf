@@ -63,31 +63,3 @@ resource "azurerm_linux_virtual_machine" "appvm" {
     azurerm_network_interface.appinterface,
     tls_private_key.azureuser_ssh ]
 }
-
-resource "null_resource" "installnginx" {
-  provisioner "remote-exec" {
-    inline = [
-      "sudo apt-get update",
-      "sudo apt-get -y install nginx"
-    ]
-    
-    connection {
-      type = "ssh"
-      user = "${var.admin_username}"
-      private_key = file("${local_file.ssh_privat_key.filename}")
-      host = "${azurerm_public_ip.appip.ip_address}"
-    }
-  }
-  depends_on = [ azurerm_linux_virtual_machine.appvm ]
-}
-
-output "ssh_command" {
-  value="ssh -i ${local_file.ssh_privat_key.filename} ${var.admin_username}@${azurerm_public_ip.appip.ip_address} -o StrictHostKeyChecking=no -o IdentitiesOnly=yes"
-  #value="ssh -i ${local_file.ssh_privat_key.filename} ${var.admin_username}@$ip_address -o StrictHostKeyChecking=no -o IdentitiesOnly=yes"
-}
-
-#output "ssh_command" {
-#  value = {
-#    for ip in azurerm_public_ip.appip.*.ip_address : k => jsondecode(v.body)["id"]
-#  }
-#}
